@@ -50,7 +50,7 @@
     .header-logo-wrap {
       display: flex;
       align-items: center;
-      height: 168px;
+      height: 56px;
     }
 
     .header-logo {
@@ -58,6 +58,11 @@
       object-fit: contain;
       display: block;
       filter: drop-shadow(0 1px 4px rgba(0,0,0,0.25));
+    }
+    /* Esto aplica solo al primer logo del header */
+   .header-logo-wrap:first-of-type,
+   .header-logo-wrap:first-of-type .header-logo {
+   height: 70px; 
     }
 
     .header-logo-fallback {
