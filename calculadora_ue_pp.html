@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280">
+  <title>Calculadora Rentabilidad Sembradora + Precision Planting</title>
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* ── Precision Planting brand ───────────────── */
+      --pp-dark:    #1A5228;   /* dark forest green (logo circle + text) */
+      --pp-orange:  #E55719;   /* orange accent stripes */
+      /* ── D&E Ag Tech brand ──────────────────────── */
+      --dye-dark:   #1F6620;   /* dark green (D&E lettering) */
+      --dye-bright: #44C43E;   /* bright green (checkmark icon) */
+      --dye-gray:   #555555;   /* AG TECH text */
+      /* ── Derived ────────────────────────────────── */
+      --primary:    #1A5228;   /* PP dark green — dominant */
+      --secondary:  #1F6620;   /* D&E dark green — block headers */
+      --accent:     #E55719;   /* PP orange — highlights & alerts */
+      --green-light: #EAF5EA;
+      --orange-light: #FFF3E0;
+      --text:       #2C2C2C;
+      --text-light: #666;
+      --border:     #D4D4D4;
+      --bg-page:    #F3F5F3;
+      --shadow:     0 2px 10px rgba(0,0,0,0.10);
+    }
+
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg-page);
+      color: var(--text);
+      font-size: 15px;
+      min-width: 1280px;
+    }
+
+    /* ─── HEADER ──────────────────────────────────────────── */
+    .header {
+      background: linear-gradient(135deg, #0E2C18 0%, #1A5228 55%, #1F6620 100%);
+      padding: 14px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.28);
+    }
+
+    .header-logo-wrap {
+      display: flex;
+      align-items: center;
+      height: 56px;
+    }
+
+    .header-logo {
+      height: 56px;
+      object-fit: contain;
+      display: block;
+      filter: drop-shadow(0 1px 4px rgba(0,0,0,0.25));
+    }
+
+    .header-logo-fallback {
+      color: white;
+      text-align: center;
+      line-height: 1.25;
+    }
+
+    .header-title {
+      text-align: center;
+      color: white;
+      flex: 1;
+      padding: 0 24px;
+    }
+
+    .header-title h1 {
+      font-size: 21px;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    .header-title p {
+      font-size: 12.5px;
+      opacity: 0.78;
+      margin-top: 4px;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────────── */
+    .container {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 32px 20px 64px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+    }
+
+    /* ─── BLOCK CARD ──────────────────────────────────────── */
+    .block {
+      background: #fff;
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .block-header {
+      background: var(--secondary);
+      color: white;
+      padding: 13px 28px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .block-header.pp {
+      background: linear-gradient(90deg, #0E2C18 0%, #1A5228 100%);
+    }
+
+    .block-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.22);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .block-header h2 {
+      font-size: 15px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    /* orange stripe accent on PP block header */
+    .block-header.pp::after {
+      content: '';
+      display: block;
+      width: 6px;
+      height: 100%;
+      background: var(--pp-orange);
+      position: absolute;
+      right: 0;
+      top: 0;
+    }
+    .block-header.pp { position: relative; padding-right: 34px; }
+
+    .block-body {
+      padding: 28px 32px;
+    }
+
+    /* ─── SECTION LABEL ───────────────────────────────────── */
+    .slabel {
+      display: inline-block;
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--secondary);
+      border-bottom: 2px solid var(--secondary);
+      padding-bottom: 4px;
+      margin-bottom: 16px;
+    }
+
+    .slabel.pp { color: var(--primary); border-color: var(--primary); }
+
+    /* ─── INPUT GRID ──────────────────────────────────────── */
+    .input-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px 28px;
+    }
+
+    .input-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px 28px;
+    }
+
+    .ig {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .ig label {
+      font-size: 12.5px;
+      color: var(--text-light);
+      font-weight: 600;
+    }
+
+    .ig input {
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      padding: 9px 12px;
+      font-size: 15px;
+      font-family: Arial, sans-serif;
+      color: var(--text);
+      transition: border-color 0.18s, box-shadow 0.18s;
+      width: 100%;
+      background: #fff;
+    }
+
+    .ig input:focus {
+      outline: none;
+      border-color: var(--secondary);
+      box-shadow: 0 0 0 3px rgba(31,102,32,0.12);
+    }
+
+    .ig .note {
+      font-size: 11px;
+      color: #999;
+      font-style: italic;
+    }
+
+    hr.div { border: none; border-top: 1.5px solid #EBEBEB; margin: 24px 0; }
+
+    /* ─── OUTPUT TABLE B1 ─────────────────────────────────── */
+    .out-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .out-table thead th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-light);
+      padding: 7px 14px;
+      border-bottom: 2px solid #E8E8E8;
+      text-align: left;
+    }
+
+    .out-table thead th:last-child { text-align: right; }
+
+    .out-table td {
+      padding: 10px 14px;
+      font-size: 14px;
+      border-bottom: 1px solid #F2F2F2;
+      vertical-align: middle;
+    }
+
+    .out-table td:last-child {
+      text-align: right;
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .out-table tr:last-child td { border-bottom: none; }
+
+    .row-sub td {
+      background: #E8F5E8;
+      color: var(--secondary);
+      font-weight: 700 !important;
+    }
+
+    .row-pos td {
+      background: var(--green-light);
+      color: var(--primary);
+      font-weight: 700 !important;
+      font-size: 16px !important;
+    }
+
+    .row-neg td {
+      background: #FFEBEE;
+      color: #C62828;
+      font-weight: 700 !important;
+      font-size: 16px !important;
+    }
+
+    .row-amort td {
+      border-top: 1.5px solid #EBEBEB;
+      color: var(--text-light);
+      font-size: 13.5px;
+    }
+
+    .row-eco td {
+      background: #F6F6F6;
+      color: #999;
+      font-size: 12.5px !important;
+      font-weight: 400 !important;
+      border-top: 1px dashed #E0E0E0;
+    }
+
+    .pb-disclaimer {
+      font-size: 11px;
+      opacity: 0.50;
+      margin-top: 14px;
+      font-style: italic;
+      line-height: 1.4;
+    }
+
+    .badge-amort {
+      display: inline-block;
+      font-size: 11px;
+      background: var(--orange-light);
+      color: var(--accent);
+      border: 1px solid #FFBA7B;
+      border-radius: 10px;
+      padding: 2px 8px;
+      margin-left: 8px;
+      font-weight: 600;
+    }
+
+    /* ─── BIG NUMBERS B2 ──────────────────────────────────── */
+    .big-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .big-card {
+      border-radius: 10px;
+      border: 1.5px solid var(--border);
+      padding: 22px 16px;
+      text-align: center;
+      background: #FAFAFA;
+    }
+
+    .big-card.bg-green { background: var(--green-light); border-color: #7FC97F; }
+    .big-card.bg-pos   { background: var(--green-light); border-color: var(--secondary); }
+    .big-card.bg-neg   { background: #FFEBEE; border-color: #EF9A9A; }
+
+    .big-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      color: var(--text-light);
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+
+    .big-val {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.1;
+      word-break: break-all;
+    }
+
+    .big-card.bg-green .big-val { color: var(--primary); }
+    .big-card.bg-pos   .big-val { color: var(--primary); }
+    .big-card.bg-neg   .big-val { color: #C62828; }
+
+    /* ─── PAYBACK (B3) ────────────────────────────────────── */
+    .payback-box {
+      background: linear-gradient(135deg, #0E2C18 0%, #1A5228 60%, #226622 100%);
+      border-radius: 12px;
+      padding: 36px 24px 28px;
+      text-align: center;
+      color: white;
+      margin-bottom: 24px;
+      transition: background 0.4s;
+    }
+
+    .pb-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.14em;
+      opacity: 0.75;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .pb-num {
+      font-size: 88px;
+      font-weight: 700;
+      line-height: 1;
+      text-shadow: 0 3px 16px rgba(0,0,0,0.22);
+      letter-spacing: -0.02em;
+    }
+
+    .pb-unit {
+      font-size: 19px;
+      opacity: 0.80;
+      margin-top: 2px;
+    }
+
+    .pb-no-recupera {
+      font-size: 24px;
+      font-weight: 700;
+      color: #FFCDD2;
+    }
+
+    .pb-levers {
+      display: flex;
+      justify-content: center;
+      gap: 56px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.18);
+    }
+
+    .lv-stat { text-align: center; }
+
+    .lv-stat-label {
+      font-size: 11px;
+      opacity: 0.70;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 4px;
+    }
+
+    .lv-stat-val {
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    /* ─── SLIDERS ─────────────────────────────────────────── */
+    .sliders-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+    }
+
+    .slider-card {
+      background: #F5FCF5;
+      border: 1.5px solid #B8DCB8;
+      border-radius: 10px;
+      padding: 20px 22px;
+    }
+
+    .slider-title {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--primary);
+      margin-bottom: 6px;
+    }
+
+    .slider-cur {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 10px;
+      line-height: 1.15;
+    }
+
+    .slider-cur span {
+      font-size: 14px;
+      color: var(--text-light);
+      font-weight: 400;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      accent-color: var(--pp-orange);
+      cursor: pointer;
+      height: 5px;
+    }
+
+    .slider-edges {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+    }
+
+    /* ─── EXPORT ──────────────────────────────────────────── */
+    .export-wrap {
+      max-width: 1180px;
+      margin: 0 auto 48px;
+      padding: 0 20px;
+      text-align: center;
+    }
+
+    .btn-export {
+      background: var(--primary);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      padding: 15px 44px;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.03em;
+      box-shadow: 0 4px 14px rgba(26,82,40,0.30);
+      transition: background 0.18s, transform 0.1s, box-shadow 0.18s;
+    }
+
+    .btn-export:hover {
+      background: var(--secondary);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 18px rgba(31,102,32,0.30);
+    }
+
+    .btn-export:active { transform: translateY(0); }
+
+    .note { font-size: 11.5px; color: #aaa; font-style: italic; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════ HEADER ══════════════════ -->
+<header class="header">
+  <div class="header-logo-wrap">
+    <img src="logo%20DyE.png" alt="D&amp;E Ag Tech" class="header-logo"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <div class="header-logo-fallback" style="display:none">
+      <div style="font-size:22px;font-weight:900;letter-spacing:-0.01em">D&amp;E</div>
+      <div style="font-size:10px;letter-spacing:0.18em;opacity:0.8">AG TECH</div>
+    </div>
+  </div>
+
+  <div class="header-title">
+    <h1>Calculadora de Rentabilidad</h1>
+    <p>Sembradora &amp; Retrofit Precision Planting</p>
+  </div>
+
+  <div class="header-logo-wrap">
+    <img src="PTx_PrecisionPlanting_Logo_Multi_CMYK_Print_2x.png" alt="Precision Planting" class="header-logo"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='block'">
+    <div class="header-logo-fallback" style="display:none">
+      <div style="font-size:13px;font-weight:700;letter-spacing:0.04em">PRECISION</div>
+      <div style="font-size:13px;font-weight:700;letter-spacing:0.04em">PLANTING<sup style="font-size:9px">®</sup></div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ══════════════════ BLOQUE 1 ══════════════════ -->
+  <div class="block">
+    <div class="block-header">
+      <div class="block-num">1</div>
+      <h2>Unit Economics por hectárea</h2>
+    </div>
+    <div class="block-body">
+
+      <div class="slabel">Datos de operación</div>
+
+      <div class="input-grid">
+        <div class="ig">
+          <label>Precio cobrado (U$S/ha)</label>
+          <input type="text" id="precio" placeholder="ej: 45.00" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Gasoil — litros/ha</label>
+          <input type="text" id="gasoil_litros" placeholder="ej: 12" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Gasoil — U$S/litro</label>
+          <input type="text" id="gasoil_precio" placeholder="ej: 1.20" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Mano de obra (U$S/ha)</label>
+          <input type="text" id="mano_obra" placeholder="ej: 5.00" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Mantenimiento + repuestos (% del ingreso/ha)</label>
+          <input type="text" id="mant_pct" value="4" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Hectáreas por año</label>
+          <input type="text" id="ha_anio" placeholder="ej: 3,000" oninput="recalcular()">
+        </div>
+      </div>
+
+      <hr class="div">
+      <div class="slabel">Datos del equipo</div>
+
+      <div class="input-grid">
+        <div class="ig">
+          <label>Valor actual de la sembradora (U$S)</label>
+          <input type="text" id="valor_sembradora" placeholder="ej: 180,000" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Años que tiene el equipo</label>
+          <input type="text" id="anios_equipo" placeholder="ej: 5" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Vida útil de la sembradora (años)</label>
+          <input type="text" id="vida_util" value="12" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Valor residual (%)</label>
+          <input type="text" id="valor_residual" value="20" oninput="recalcular()">
+        </div>
+      </div>
+
+      <hr class="div">
+      <div class="slabel">Estructura de costos</div>
+
+      <table class="out-table">
+        <thead>
+          <tr>
+            <th>Concepto</th>
+            <th style="text-align:right">U$S/ha</th>
+          </tr>
+        </thead>
+        <tbody id="b1-tbody">
+          <tr><td colspan="2" style="color:#bbb;padding:18px 14px;font-style:italic;font-size:13px">
+            Completar los campos para ver resultados
+          </td></tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════ BLOQUE 2 ══════════════════ -->
+  <div class="block">
+    <div class="block-header">
+      <div class="block-num">2</div>
+      <h2>Resultado anual</h2>
+    </div>
+    <div class="block-body">
+
+      <div style="max-width:360px;margin-bottom:28px">
+        <div class="ig">
+          <label>Cuota anual de la máquina (U$S)</label>
+          <input type="text" id="cuota_anual" value="0" oninput="recalcular()">
+          <span class="note">Dejar en 0 si no está financiada</span>
+        </div>
+      </div>
+
+      <div class="big-grid">
+        <div class="big-card">
+          <div class="big-label">Ingreso anual</div>
+          <div class="big-val" id="b2-ingreso">—</div>
+        </div>
+        <div class="big-card bg-green">
+          <div class="big-label">Margen neto anual</div>
+          <div class="big-val" id="b2-margen">—</div>
+        </div>
+        <div class="big-card" id="b2-cuota-card">
+          <div class="big-label">Resultado después de cuota</div>
+          <div class="big-val" id="b2-resultado">—</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ══════════════════ BLOQUE 3 ══════════════════ -->
+  <div class="block">
+    <div class="block-header pp">
+      <div class="block-num">3</div>
+      <h2>ROI del retrofit Precision Planting</h2>
+    </div>
+    <div class="block-body">
+
+      <div class="slabel pp">Datos del retrofit</div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px 28px;margin-bottom:28px">
+        <div class="ig">
+          <label>Costo del retrofit PP (U$S)</label>
+          <input type="text" id="costo_retrofit" placeholder="ej: 12,000" oninput="recalcular()">
+        </div>
+        <div class="ig">
+          <label>Límite de capacidad (ha máx/campaña)</label>
+          <input type="text" id="limite_capacidad" placeholder="ej: 4,500" oninput="recalcular()">
+        </div>
+      </div><!-- /input-grid -->
+
+      <!-- PAYBACK BIG DISPLAY -->
+      <div class="payback-box" id="payback-box">
+        <div class="pb-label">Campañas de recupero</div>
+        <div class="pb-num" id="pb-num">—</div>
+        <div class="pb-unit" id="pb-unit">campañas</div>
+        <div class="pb-levers">
+          <div class="lv-stat">
+            <div class="lv-stat-label">Solo con precio</div>
+            <div class="lv-stat-val" id="lv-precio">—</div>
+          </div>
+          <div class="lv-stat">
+            <div class="lv-stat-label">Solo con hectáreas</div>
+            <div class="lv-stat-val" id="lv-ha">—</div>
+          </div>
+        </div>
+        <p class="pb-disclaimer">Este cálculo no incluye el incremento en el valor de reventa de la máquina con el retrofit instalado.</p>
+      </div>
+
+      <!-- SLIDERS -->
+      <div class="sliders-grid">
+        <div class="slider-card">
+          <div class="slider-title">Palanca 1 — Mejora de precio cobrado</div>
+          <div class="slider-cur" id="s1-cur">$0.00 <span>/ha adicionales</span></div>
+          <input type="range" id="slider-precio" min="0" max="50" step="0.5" value="0"
+                 oninput="onSlider1()">
+          <div class="slider-edges">
+            <span>$0.00/ha</span>
+            <span id="s1-max-lbl">— máx</span>
+          </div>
+        </div>
+        <div class="slider-card">
+          <div class="slider-title">Palanca 2 — Hectáreas adicionales</div>
+          <div class="slider-cur" id="s2-cur">0 <span>ha adicionales</span></div>
+          <input type="range" id="slider-ha" min="0" max="2000" step="50" value="0"
+                 oninput="onSlider2()">
+          <div class="slider-edges">
+            <span>0 ha</span>
+            <span id="s2-max-lbl">— máx</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<!-- ══════════════════ EXPORT ══════════════════ -->
+<div class="export-wrap">
+  <button class="btn-export" onclick="exportarExcel()">↓ &nbsp;Exportar a Excel</button>
+  <p class="note" style="margin-top:10px">La exportación requiere SheetJS (cargado desde CDN — necesita internet la primera vez)</p>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════
+//  UTILITIES
+// ═══════════════════════════════════════════════════════════════
+
+// Detect decimal separator by position of last comma vs last dot
+function pn(v) {
+  if (v === '' || v == null) return 0;
+  let s = String(v).trim().replace(/\s/g, '');
+  const lastComma = s.lastIndexOf(',');
+  const lastDot   = s.lastIndexOf('.');
+  if (lastComma > lastDot) {
+    // Argentine style: 1.500,50
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (lastDot > lastComma) {
+    // US style: 1,500.50
+    s = s.replace(/,/g, '');
+  }
+  return parseFloat(s) || 0;
+}
+
+// USD format: $1,234.56 (en-US, always 2 decimals)
+function fmt(n) {
+  if (n == null || isNaN(n) || !isFinite(n)) return '—';
+  const sign = n < 0 ? '−$' : '$';
+  return sign + Math.abs(n).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+}
+
+function $id(id) { return document.getElementById(id); }
+
+// ═══════════════════════════════════════════════════════════════
+//  BLOQUE 1
+// ═══════════════════════════════════════════════════════════════
+
+function calcB1() {
+  const precio       = pn($id('precio').value);
+  const gsLitros     = pn($id('gasoil_litros').value);
+  const gsPrecio     = pn($id('gasoil_precio').value);
+  const manoObra     = pn($id('mano_obra').value);
+  const mantPct      = pn($id('mant_pct').value);
+  const valorSem      = pn($id('valor_sembradora').value);
+  const aniosEquipo   = pn($id('anios_equipo').value);
+  const vidaUtil      = pn($id('vida_util').value);
+  const valorResidual = Math.min(50, Math.max(0, pn($id('valor_residual').value)));
+  const haAnio        = pn($id('ha_anio').value);
+
+  const costoGasoil = gsLitros * gsPrecio;
+  const costoMant   = (mantPct / 100) * precio;
+
+  const aniosRest   = vidaUtil - aniosEquipo;
+  const yaAmort     = aniosRest <= 0;
+
+  let amortAnual = 0, amortHa = 0;
+  if (!yaAmort && haAnio > 0 && aniosRest > 0) {
+    const valorAmortizar = valorSem * (1 - valorResidual / 100);
+    amortAnual = valorAmortizar / aniosRest;
+    amortHa    = amortAnual / haAnio;
+  }
+
+  // Margen operativo: sin amortización (base para B2 y B3)
+  const costoOperativo  = costoGasoil + manoObra + costoMant;
+  const margenOperativo = precio - costoOperativo;
+
+  // Margen económico: con amortización (referencia contable)
+  const costoEconomico  = costoOperativo + amortHa;
+  const margenEconomico = precio - costoEconomico;
+
+  return {
+    precio, gsLitros, gsPrecio, manoObra, mantPct,
+    valorSem, aniosEquipo, vidaUtil, valorResidual, haAnio,
+    costoGasoil, costoMant, amortAnual, amortHa,
+    costoOperativo, margenOperativo,
+    costoEconomico, margenEconomico,
+    aniosRest, yaAmort
+  };
+}
+
+function renderB1(d) {
+  const tbody = $id('b1-tbody');
+
+  if (!d.precio && !d.haAnio) {
+    tbody.innerHTML = '<tr><td colspan="2" style="color:#bbb;padding:18px 14px;font-style:italic;font-size:13px">Completar los campos para ver resultados</td></tr>';
+    return;
+  }
+
+  const mcOp = d.margenOperativo >= 0 ? 'row-pos' : 'row-neg';
+
+  const amortLabel = d.yaAmort
+    ? 'Amortización sembradora <span class="badge-amort">equipo ya amortizado</span>'
+    : `Amortización sembradora &nbsp;<small style="color:#999">(VR ${d.valorResidual}% — ${fmt(d.amortAnual)}/año ÷ ${d.haAnio.toLocaleString('en-US')} ha)</small>`;
+  const amortVal = d.yaAmort ? '—' : fmt(d.amortHa);
+
+  tbody.innerHTML = `
+    <tr>
+      <td>Gasoil &nbsp;<small style="color:#999">(${d.gsLitros.toLocaleString('en-US')} L/ha × ${fmt(d.gsPrecio)}/L)</small></td>
+      <td>${fmt(d.costoGasoil)}</td>
+    </tr>
+    <tr>
+      <td>Mano de obra</td>
+      <td>${fmt(d.manoObra)}</td>
+    </tr>
+    <tr>
+      <td>Mantenimiento + repuestos &nbsp;<small style="color:#999">(${d.mantPct}% del ingreso)</small></td>
+      <td>${fmt(d.costoMant)}</td>
+    </tr>
+    <tr class="row-sub">
+      <td><strong>Costo operativo / ha</strong></td>
+      <td><strong>${fmt(d.costoOperativo)}</strong></td>
+    </tr>
+    <tr class="${mcOp}">
+      <td><strong>Margen operativo / ha</strong></td>
+      <td><strong>${fmt(d.margenOperativo)}</strong></td>
+    </tr>
+    <tr class="row-amort">
+      <td>${amortLabel}</td>
+      <td>${amortVal}</td>
+    </tr>
+    <tr class="row-eco">
+      <td>Margen económico / ha &nbsp;<small>(incluye amortización de la sembradora)</small></td>
+      <td>${fmt(d.margenEconomico)}</td>
+    </tr>
+  `;
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BLOQUE 2
+// ═══════════════════════════════════════════════════════════════
+
+function calcB2(b1) {
+  const cuota     = pn($id('cuota_anual').value);
+  const ingreso   = b1.precio * b1.haAnio;
+  const costoAn   = b1.costoOperativo * b1.haAnio;
+  const margen    = b1.margenOperativo * b1.haAnio;
+  const resultado = margen - cuota;
+  return { cuota, ingreso, costoAn, margen, resultado };
+}
+
+function renderB2(d) {
+  $id('b2-ingreso').textContent   = fmt(d.ingreso);
+  $id('b2-margen').textContent    = fmt(d.margen);
+  $id('b2-resultado').textContent = fmt(d.resultado);
+
+  const card = $id('b2-cuota-card');
+  card.className = 'big-card';
+  if (d.resultado >= 0) card.classList.add('bg-pos');
+  else                  card.classList.add('bg-neg');
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  BLOQUE 3
+// ═══════════════════════════════════════════════════════════════
+
+function calcB3(b1, mejoraPrecio, haAdicionales) {
+  const costoRetrofit   = pn($id('costo_retrofit').value);
+  const limiteCapacidad = pn($id('limite_capacidad').value);
+
+  const haAd = (limiteCapacidad > 0) ? Math.min(haAdicionales, limiteCapacidad) : haAdicionales;
+
+  // Margen adicional = sobreprecio sobre ha base + ingreso neto de ha nuevas
+  const margenAdicional = (mejoraPrecio * b1.haAnio) + (haAd * b1.margenOperativo);
+
+  // Payback: campañas para recuperar la inversión con el beneficio extra
+  let campanias = null, noRecupera = false;
+  if (margenAdicional > 0 && costoRetrofit > 0)        campanias  = costoRetrofit / margenAdicional;
+  else if (margenAdicional <= 0 && costoRetrofit > 0)  noRecupera = true;
+
+  // Desglose por palanca (independiente)
+  const soloPrecioFlow = mejoraPrecio * b1.haAnio;
+  const soloHaFlow     = haAd * b1.margenOperativo;
+
+  const campPrecio = (soloPrecioFlow > 0 && costoRetrofit > 0) ? costoRetrofit / soloPrecioFlow : null;
+  const campHa     = (soloHaFlow     > 0 && costoRetrofit > 0) ? costoRetrofit / soloHaFlow     : null;
+
+  return {
+    costoRetrofit, limiteCapacidad, haAd,
+    margenAdicional,
+    campanias, noRecupera,
+    campPrecio, campHa
+  };
+}
+
+function renderB3(d) {
+  const box  = $id('payback-box');
+  const num  = $id('pb-num');
+  const unit = $id('pb-unit');
+
+  if (d.campanias !== null) {
+    num.className = 'pb-num';
+    num.textContent = d.campanias.toFixed(1);
+    unit.textContent = d.campanias === 1 ? 'campaña' : 'campañas';
+
+    if (d.campanias <= 3) {
+      // Excellent — PP deep green
+      box.style.background = 'linear-gradient(135deg, #0E2C18 0%, #1A5228 60%, #226622 100%)';
+    } else if (d.campanias <= 6) {
+      // Good — medium green
+      box.style.background = 'linear-gradient(135deg, #2A4A20 0%, #3A7A2A 100%)';
+    } else {
+      // Long — amber tone using PP orange
+      box.style.background = 'linear-gradient(135deg, #5C3810 0%, #8A5A1A 100%)';
+    }
+  } else if (d.noRecupera) {
+    num.className = 'pb-no-recupera';
+    num.textContent = 'No se recupera con estos parámetros';
+    unit.textContent = '';
+    box.style.background = 'linear-gradient(135deg, #5C1010 0%, #8A2020 100%)';
+  } else {
+    num.className = 'pb-num';
+    num.textContent = '—';
+    unit.textContent = 'campañas';
+    box.style.background = 'linear-gradient(135deg, #0E2C18 0%, #1A5228 60%, #226622 100%)';
+  }
+
+  $id('lv-precio').textContent = d.campPrecio !== null ? d.campPrecio.toFixed(1) : '—';
+  $id('lv-ha').textContent     = d.campHa     !== null ? d.campHa.toFixed(1)     : '—';
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  SLIDER HELPERS
+// ═══════════════════════════════════════════════════════════════
+
+function syncSliderMaxes(b1) {
+  // Slider 1: 0 to 50% of precio/ha, step 0.50
+  const s1   = $id('slider-precio');
+  const raw  = b1.precio * 0.5;
+  const max1 = raw > 0 ? Math.round(raw * 2) / 2 : 50;  // round to nearest 0.5
+  s1.max  = max1;
+  s1.step = 0.5;
+  const v1 = parseFloat(s1.value);
+  if (v1 > max1) s1.value = max1;
+  $id('s1-max-lbl').textContent = '$' + max1.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '/ha';
+  // Refresh display
+  $id('s1-cur').innerHTML = fmt(parseFloat(s1.value)) + ' <span>/ha adicionales</span>';
+
+  // Slider 2: 0 to límite_capacidad, step 50
+  const s2   = $id('slider-ha');
+  const lim  = pn($id('limite_capacidad').value);
+  const max2 = lim > 0 ? lim : 2000;
+  s2.max = max2;
+  const v2 = parseFloat(s2.value);
+  if (v2 > max2) {
+    s2.value = max2;
+    $id('s2-cur').innerHTML = Math.round(max2).toLocaleString('en-US') + ' <span>ha adicionales</span>';
+  }
+  $id('s2-max-lbl').textContent = Math.round(max2).toLocaleString('en-US') + ' ha';
+}
+
+function onSlider1() {
+  const v = parseFloat($id('slider-precio').value);
+  $id('s1-cur').innerHTML = fmt(v) + ' <span>/ha adicionales</span>';
+  recalcular();
+}
+
+function onSlider2() {
+  const lim = pn($id('limite_capacidad').value);
+  let v = parseFloat($id('slider-ha').value);
+  if (lim > 0 && v > lim) { v = lim; $id('slider-ha').value = lim; }
+  $id('s2-cur').innerHTML = Math.round(v).toLocaleString('en-US') + ' <span>ha adicionales</span>';
+  recalcular();
+}
+
+// ═══════════════════════════════════════════════════════════════
+//  MAIN
+// ═══════════════════════════════════════════════════════════════
+
+function recalcular() {
+  const b1 = calcB1();
+  renderB1(b1);
+
+  const b2 = calcB2(b1);
+  renderB2(b2);
+
+  syncSliderMaxes(b1);
+
+  const mejoraPrecio  = parseFloat($id('slider-precio').value);
+  const haAdicionales = parseFloat($id('slider-ha').value);
+  const b3 = calcB3(b1, mejoraPrecio, haAdicionales);
+  renderB3(b3);
+}
+
+recalcular();
+
+// ═══════════════════════════════════════════════════════════════
+//  EXCEL EXPORT
+// ═══════════════════════════════════════════════════════════════
+
+function exportarExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('SheetJS no está disponible. Verificá la conexión a internet e intentá de nuevo.');
+    return;
+  }
+
+  const b1 = calcB1();
+  const b2 = calcB2(b1);
+  const mejoraPrecio  = parseFloat($id('slider-precio').value);
+  const haAdicionales = parseFloat($id('slider-ha').value);
+  const b3 = calcB3(b1, mejoraPrecio, haAdicionales);
+
+  const wb = XLSX.utils.book_new();
+
+  const s1 = [
+    ['UNIT ECONOMICS POR HECTÁREA'],
+    [],
+    ['INPUTS'],
+    ['Precio cobrado', b1.precio, 'U$S/ha'],
+    ['Gasoil — litros/ha', b1.gsLitros, 'L/ha'],
+    ['Gasoil — precio/litro', b1.gsPrecio, 'U$S/L'],
+    ['Mano de obra', b1.manoObra, 'U$S/ha'],
+    ['Mantenimiento + repuestos', b1.mantPct, '% del ingreso/ha'],
+    ['Valor actual de la sembradora', b1.valorSem, 'U$S'],
+    ['Años que tiene el equipo', b1.aniosEquipo, 'años'],
+    ['Vida útil de la sembradora', b1.vidaUtil, 'años'],
+    ['Valor residual', b1.valorResidual, '%'],
+    ['Hectáreas por año', b1.haAnio, 'ha/año'],
+    [],
+    ['RESULTADOS'],
+    ['Costo gasoil/ha', b1.costoGasoil, 'U$S/ha'],
+    ['Mano de obra/ha', b1.manoObra, 'U$S/ha'],
+    ['Mantenimiento/ha', b1.costoMant, 'U$S/ha'],
+    ['Costo operativo/ha', b1.costoOperativo, 'U$S/ha'],
+    ['Margen operativo/ha', b1.margenOperativo, 'U$S/ha'],
+    ['Amortización sembradora/ha', b1.yaAmort ? 'Equipo ya amortizado' : b1.amortHa, b1.yaAmort ? '' : 'U$S/ha'],
+    ['Margen económico/ha (c/ amortización)', b1.margenEconomico, 'U$S/ha'],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s1), 'UE por hectárea');
+
+  const s2 = [
+    ['RESULTADO ANUAL'],
+    [],
+    ['Cuota anual de la máquina', b2.cuota, 'U$S'],
+    [],
+    ['Ingreso anual', b2.ingreso, 'U$S'],
+    ['Costo total anual', b2.costoAn, 'U$S'],
+    ['Margen neto anual', b2.margen, 'U$S'],
+    ['Resultado después de cuota', b2.resultado, 'U$S'],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s2), 'Resultado anual');
+
+  const campStr = b3.campanias !== null
+    ? b3.campanias
+    : (b3.noRecupera ? 'No se recupera con estos parámetros' : '—');
+
+  const s3 = [
+    ['ROI DEL RETROFIT PRECISION PLANTING'],
+    [],
+    ['INPUTS'],
+    ['Costo del retrofit PP', b3.costoRetrofit, 'U$S'],
+    ['Límite de capacidad', b3.limiteCapacidad, 'ha/campaña'],
+    [],
+    ['PARÁMETROS (sliders al momento de exportar)'],
+    ['Mejora de precio', mejoraPrecio, 'U$S/ha'],
+    ['Hectáreas adicionales', haAdicionales, 'ha'],
+    [],
+    ['RESULTADOS'],
+    ['Margen adicional anual', b3.margenAdicional, 'U$S'],
+    ['Campañas de recupero (combinado)', campStr, typeof campStr === 'number' ? 'campañas' : ''],
+    [],
+    ['DESGLOSE POR PALANCA'],
+    ['Solo con mejora de precio', b3.campPrecio !== null ? b3.campPrecio : 'No se recupera', b3.campPrecio !== null ? 'campañas' : ''],
+    ['Solo con hectáreas adicionales', b3.campHa !== null ? b3.campHa : 'No se recupera', b3.campHa !== null ? 'campañas' : ''],
+  ];
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(s3), 'ROI retrofit');
+
+  const fecha = new Date().toISOString().slice(0,10).replace(/-/g,'');
+  XLSX.writeFile(wb, `calculadora_ue_pp_${fecha}.xlsx`);
+}
+</script>
+</body>
+</html>
